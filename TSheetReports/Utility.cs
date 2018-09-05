@@ -16,9 +16,15 @@ namespace TSheetReports
             return durationString;
         }
 
-        public static string FormatIso8601(DateTime dt)
+        public string FormatIso8601(DateTime dt)
         {
             var dto = new DateTimeOffset(dt, TimeZoneInfo.Local.GetUtcOffset(dt));
+            var formatIso8601 = dto.ToString("yyyy-MM-ddTHH:mm:ssK");
+            return formatIso8601;
+        }
+        public string FormatIso8601(DateTimeOffset dto)
+        {
+            //var dto = new DateTimeOffset(dt, TimeZoneInfo.Local.GetUtcOffset(dt));
             var formatIso8601 = dto.ToString("yyyy-MM-ddTHH:mm:ssK");
             return formatIso8601;
         }
@@ -28,7 +34,6 @@ namespace TSheetReports
             {
                 offset = DateTimeOffset.Now;
             }
-
             return offset;
         }
         public double FormatIso8601Duration(DateTimeOffset sDate, DateTimeOffset eDate)

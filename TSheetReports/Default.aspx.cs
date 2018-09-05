@@ -75,7 +75,7 @@ namespace TSheetReports
 
             DataSet1 ds = GetTimesheetsSample(_sDate, _eDate);
 
-            //GetScheduleEventsSample(_sDate,_eDate);
+            GetScheduleEventsSample(_sDate,_eDate);
 
             crystalReport.SetDataSource(ds.Tables[1]);
             CrystalReportViewer1.ReportSource = crystalReport;
@@ -311,17 +311,18 @@ namespace TSheetReports
         }
 
 
-
-
-
         void GetScheduleEventsSample(DateTimeOffset sDate, DateTimeOffset eDate)
         {
+            //Utility ut = new Utility();
+            //var sd = ut.FormatIso8601(sDate);
+            //var ed = ut.FormatIso8601(eDate);
+
             var tsheetsApi = new RestClient(_connection, _authProvider);
 
             var filters = new Dictionary<string, string>
             {
-                { "start_date", sDate.ToString("yyyy-MM-dd") },
-                { "end_date", eDate.ToString("yyyy-MM-dd") },
+                { "start", sDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
+                { "end", eDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
                 { "schedule_calendar_ids", "145533" },
                 { "user_ids", "1444085"}
             };
