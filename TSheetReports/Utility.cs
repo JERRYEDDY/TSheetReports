@@ -1,0 +1,41 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+
+namespace TSheetReports
+{
+    public class Utility
+    {
+
+        public string DurationToHours(double duration)
+        {
+            var t = TimeSpan.FromSeconds(duration);
+            //var durationString = string.Format("{0:N2}", t.TotalHours);
+            var durationString = $"{t.TotalHours,0:N2}";
+            return durationString;
+        }
+
+        public static string FormatIso8601(DateTime dt)
+        {
+            var dto = new DateTimeOffset(dt, TimeZoneInfo.Local.GetUtcOffset(dt));
+            var formatIso8601 = dto.ToString("yyyy-MM-ddTHH:mm:ssK");
+            return formatIso8601;
+        }
+        public static DateTimeOffset FromString(string offsetString)
+        {
+            if (!DateTimeOffset.TryParse(offsetString, out DateTimeOffset offset))
+            {
+                offset = DateTimeOffset.Now;
+            }
+
+            return offset;
+        }
+        public double FormatIso8601Duration(DateTimeOffset sDate, DateTimeOffset eDate)
+        {
+            TimeSpan duration = sDate - eDate;
+
+            return duration.TotalSeconds;
+        }
+    }
+}
