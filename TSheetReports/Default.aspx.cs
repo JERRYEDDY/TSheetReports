@@ -327,6 +327,13 @@ namespace TSheetReports
                 { "user_ids", "1444085"}
             };
 
+
+
+            DataTable table = new DataTable();
+            table.Columns.Add("Consumer Name", typeof(string));
+            table.Columns.Add("Jobcode", typeof(string));
+            table.Columns.Add("Date", typeof(string));
+            table.Columns.Add("Act. Hours", typeof(string));
             //DateTime modified = new DateTime(2018, 7, 15, 19, 32, 0);
             //DateTimeOffset localTimeAndOffset = new DateTimeOffset(modified, TimeZoneInfo.Local.GetUtcOffset(modified));
             //string s1 = modified.ToString("yyyy’-‘MM’-‘dd’T’HH’:’mm’:’ssK");
@@ -337,12 +344,26 @@ namespace TSheetReports
             //=> "2017-06-26T20:45:00.070Z"
 
             var scheduleEventData = tsheetsApi.Get(ObjectType.ScheduleEvents, filters);
-
             var scheduleEventsObject = JObject.Parse(scheduleEventData);
             var allScheduleEvents = scheduleEventsObject.SelectTokens("results.schedule_events.*");
             foreach (var scheduleEvent in allScheduleEvents)
             {
- 
+                Utility ut = new Utility();
+
+                DateTimeOffset start = (DateTimeOffset)scheduleEvent["start"];
+                DateTimeOffset end = (DateTimeOffset) scheduleEvent["end"];
+
+                double seconds = (double) ut.FormatIso8601Duration(start, end);
+                string hours = ut.DurationToHours(seconds);
+
+                var tsUser = scheduleEventsObject.SelectToken("supplemental_data.users." + scheduleEvent["user_id"]);
+                string consumerName = tsUser["last_name"].ToString() + ", " + tsUser["first_name"].ToString();
+
+                var tsJobcode = scheduleEventsObject.SelectToken("supplemental_data.jobcodes." + scheduleEvent["jobcode_id"]);
+
+                table.Rows.Add(consumerName, tsJobcode["name"], tsheet["date"].ToString(), hours);
+
+
                 //int seconds = (int)scheduleEvent["duration"];
                 //TimeSpan t = TimeSpan.FromSeconds(seconds);
                 //string _duration = string.Format("{0:D2}h:{1:D2}m:{2:D2}s",t.Hours,t.Minutes,t.Seconds);

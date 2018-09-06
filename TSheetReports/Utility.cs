@@ -38,7 +38,7 @@ namespace TSheetReports
         }
         public double FormatIso8601Duration(DateTimeOffset sDate, DateTimeOffset eDate)
         {
-            TimeSpan duration = sDate - eDate;
+            TimeSpan duration = eDate - sDate;
 
             return duration.TotalSeconds;
         }
