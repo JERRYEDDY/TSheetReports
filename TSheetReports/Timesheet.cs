@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 
+// To parse this JSON data, add NuGet 'Newtonsoft.Json' then do:
+//
+//    using QuickType;
+//
+//    var timesheet = Timesheet.FromJson(jsonString);
+
 namespace QuickType
 {
     using System;
@@ -27,10 +33,10 @@ namespace QuickType
     public partial class Results
     {
         [JsonProperty("timesheets")]
-        public Dictionary<string, Timesheet> Timesheets { get; set; }
+        public Dictionary<string, TimesheetValue> Timesheets { get; set; }
     }
 
-    public partial class Timesheet
+    public partial class TimesheetValue
     {
         [JsonProperty("id")]
         public long Id { get; set; }
@@ -42,10 +48,10 @@ namespace QuickType
         public long JobcodeId { get; set; }
 
         [JsonProperty("start")]
-        public DateTimeOffset Start { get; set; }
+        public string Start { get; set; }
 
         [JsonProperty("end")]
-        public DateTimeOffset End { get; set; }
+        public string End { get; set; }
 
         [JsonProperty("duration")]
         public long Duration { get; set; }
@@ -265,7 +271,7 @@ namespace QuickType
         public string CompanyName { get; set; }
 
         [JsonProperty("profile_image_url")]
-        public string ProfileImageUrl { get; set; }
+        public Uri ProfileImageUrl { get; set; }
 
         [JsonProperty("mobile_number")]
         public string MobileNumber { get; set; }
@@ -349,12 +355,6 @@ namespace QuickType
         }
 
         public static readonly ParseStringConverter Singleton = new ParseStringConverter();
-
-        //This should get the user for the UID from the dictionary:
-        public Jobcode GetJobcodeForUid(Dictionary<string, Jobcode> dictionary, int uid)
-        {
-            return dictionary.Values.FirstOrDefault(j => j.Id == uid);
-        }
-
     }
 }
+

@@ -6,6 +6,7 @@ using TSheets;
 using System.IO;
 using System.Globalization;
 using System.Data;
+using System.Linq;
 using QuickType;
 using CrystalDecisions.CrystalReports.Engine;
 using log4net;
@@ -14,7 +15,7 @@ namespace TSheetReports
 {
     public partial class _Default : Page
     {
-        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         private static string _baseUri = "https://rest.tsheets.com/api/v1";
 
@@ -57,8 +58,10 @@ namespace TSheetReports
             // a manually created token in the API add-on.
             //AuthenticateWithBrowser();
 
-
             AuthenticateWithManualToken();
+
+            //DataTable schDataTable = GetScheduleCalendars();
+
             //GetJobcodesByPageSample();
             //GetScheduleEventsSample();
             //GetUserInfoSample();
@@ -67,27 +70,115 @@ namespace TSheetReports
             //ProjectReportSample();
             //AddEditDeleteTimesheetSample();
 
-            DateTimeOffset _sDate = new DateTime(2018, 8, 26, 0, 0, 0, DateTimeKind.Local);
-            DateTimeOffset _eDate = new DateTime(2018, 9, 1, 0, 0, 0, DateTimeKind.Local);
+            //DateTimeOffset _sDate = new DateTime(2018, 8, 26, 0, 0, 0, DateTimeKind.Local);
+            //DateTimeOffset _eDate = new DateTime(2018, 9, 1, 0, 0, 0, DateTimeKind.Local);
+
+            //ReportDocument crystalReport = new ReportDocument();
+            //crystalReport.Load(Server.MapPath("CrystalReport1.rpt"));
+
+            //DataTable dt1 = GetTimesheetsSample(_sDate, _eDate);
+            //DataTable dt2 = GetScheduleEventsSample(_sDate,_eDate);
+            //dt1.Merge(dt2);
+            //DataSet1 ds = new DataSet1();
+            //ds.Tables.Add(dt1);
+
+            //crystalReport.SetDataSource(ds.Tables[1]);
+            //CrystalReportViewer1.ReportSource = crystalReport;
+            //CrystalReportViewer1.RefreshReport();
+        }
+
+        protected void SubmitButton_OnClick(object sender, EventArgs e)
+        {
+            Utility ut = new Utility();
+
+            DateTimeOffset sDate = ut.DTOFromString(txtStartDate.Text);
+            DateTimeOffset eDate = ut.DTOFromString(txtEndDate.Text);
+
+            //DateTimeOffset sDate = new DateTime(2018, 8, 26, 0, 0, 0, DateTimeKind.Local);
+            //DateTimeOffset eDate = new DateTime(2018, 9, 1, 0, 0, 0, DateTimeKind.Local);
 
             ReportDocument crystalReport = new ReportDocument();
             crystalReport.Load(Server.MapPath("CrystalReport1.rpt"));
 
-            DataSet1 ds = GetTimesheetsSample(_sDate, _eDate);
+            DataTable dataTable2 = GetTimesheetsSample(sDate, eDate);
+            DataTable dataTable1 = GetScheduleEventsSample(sDate, eDate, "145533");
 
-            GetScheduleEventsSample(_sDate,_eDate);
+            dataTable1.Merge(dataTable2);
+
+            //Select the rows where columns 1-4 have repeated same values
+            var distinctRows = dataTable1.AsEnumerable()
+                .Select(s => new
+                {
+                    unique1 = s.Field<string>("ConsumerName"),
+                    unique2 = s.Field<string>("Jobcode"),
+                    //unique3 = s.Field<int>("Column3"),
+                    //unique4 = s.Field<int>("Column4"),
+                })
+                .Distinct();
+
+            //Create a new datatable for the result
+            DataTable resultDataTable = dataTable1.Clone();
+            resultDataTable.Columns.Add("Remaining", typeof(double), "IIF(Scheduled-Actual<0,0.00, Scheduled-Actual)");
+            resultDataTable.Columns.Add("Total", typeof(double), "Actual + Remain");
+
+            //Temporary variables
+            DataRow newDataRow;
+            IEnumerable<DataRow> results;
+            double tempSched;
+            double tempActual;
+
+            //Go through each distinct rows to gather column5 and column6 values
+            foreach (var item in distinctRows)
+            {
+                //create a new row for the result datatable
+                newDataRow = resultDataTable.NewRow();
+
+                //select all rows in original datatable with this distinct values
+                results = dataTable1.Select().Where(
+                    p => p.Field<string>("ConsumerName") == item.unique1
+                         && p.Field<string>("Jobcode") == item.unique2
+                         //&& p.Field<int>("Column3") == item.unique3
+                         //&& p.Field<int>("Column4") == item.unique4
+                         );
+
+                //Preserve column1 - 4 values
+                newDataRow["ConsumerName"] = item.unique1;
+                newDataRow["Jobcode"] = item.unique2;
+                //newDataRow["Column3"] = item.unique3;
+                //newDataRow["Column4"] = item.unique4;
+
+                //store here the sumns of column 5 and 6
+                tempSched = 0;
+                tempActual = 0;
+                foreach (DataRow dr in results)
+                {
+                    tempSched += (double)dr["Scheduled"];
+                    tempActual += (double)dr["Actual"];
+                }
+
+                //save those sumns in the new row
+                newDataRow["Scheduled"] = tempSched;
+                newDataRow["Actual"] = tempActual;
+
+                //add the row to the result dataTable
+                resultDataTable.Rows.Add(newDataRow);
+            }
+
+            DataSet1 ds = new DataSet1();
+            ds.Tables.Add(dataTable1);
 
             crystalReport.SetDataSource(ds.Tables[1]);
             CrystalReportViewer1.ReportSource = crystalReport;
             CrystalReportViewer1.RefreshReport();
+
+            //throw new NotImplementedException();
         }
 
-
-    /// <summary>
-    /// Shows how to set up authentication to use a static/manually created access token.
-    /// To create a manual auth token, go to the API Add-on preferences in your TSheets account
-    /// and click Add Token.
-    /// </summary>
+        /// <summary>
+        /// Shows how to set up authentication to use a static/manually created access token.
+        /// To create a manual auth token, go to the API Add-on preferences in your TSheets account
+        /// and click Add Token.
+        /// </summary>
         void AuthenticateWithManualToken()
         {
             _authProvider = new StaticAuthentication(_manualToken);
@@ -197,7 +288,7 @@ namespace TSheetReports
         /// about the selected timesheets. API users should use the supplemental data when available
         /// rather than making additional calls to the server to receive that information.
         /// </summary>
-        DataSet1 GetTimesheetsSample(DateTimeOffset sDate, DateTimeOffset eDate)
+        DataTable GetTimesheetsSample(DateTimeOffset sDate, DateTimeOffset eDate)
         {
             var tsheetsApi = new RestClient(_connection, _authProvider);
             var filters = new Dictionary<string, string>
@@ -208,14 +299,15 @@ namespace TSheetReports
 
             // Here we create a DataTable with four columns.
             DataTable table = new DataTable();
-            table.Columns.Add("Consumer Name", typeof(string));
+            table.Columns.Add("ConsumerName", typeof(string));
             table.Columns.Add("Jobcode", typeof(string));
-            table.Columns.Add("Date", typeof(string));
-            table.Columns.Add("Act. Hours", typeof(string));
+            //table.Columns.Add("Date", typeof(string));
+            table.Columns.Add("Scheduled", typeof(double));
+            table.Columns.Add("Actual", typeof(double));
 
             var timesheetData = tsheetsApi.Get(ObjectType.Timesheets, filters);
             var timesheetsObject = JObject.Parse(timesheetData);
-            //var timesheet = Timesheet.FromJson(timesheetData);
+            var timesheet = Timesheet.FromJson(timesheetData);
 
             var allTimeSheets = timesheetsObject.SelectTokens("results.timesheets.*");
             foreach (var tsheet in allTimeSheets)
@@ -223,15 +315,19 @@ namespace TSheetReports
             //foreach (Timesheet wTimesheet in timesheet.Results.Timesheets.Values)
             {
                 Utility ut = new Utility();
+
+                DateTimeOffset date = DateTimeOffset.ParseExact(tsheet["date"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+                double scheduled = 0.00;
                 double seconds = (double)tsheet["duration"];
-                string hours = ut.DurationToHours(seconds);
+                double actual = ut.DurationToHours(seconds);
 
                 var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + tsheet["user_id"]);
-                string consumerName = tsUser["last_name"].ToString() + ", " + tsUser["first_name"].ToString();
+                string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
 
                 var tsJobcode = timesheetsObject.SelectToken("supplemental_data.jobcodes." + tsheet["jobcode_id"]);
 
-                table.Rows.Add(consumerName, tsJobcode["name"], tsheet["date"].ToString(), hours);
+                table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
             }
 
             //var timesheetsObject = JObject.Parse(timesheetData);
@@ -256,10 +352,7 @@ namespace TSheetReports
             //        tsUser["first_name"], tsUser["last_name"], tsheet["date"], jobCodeName, _duration));
             //}
 
-            DataSet1 ds = new DataSet1();
-            ds.Tables.Add(table);
-
-            return ds;
+            return table;
         }
 
         /// <summary>
@@ -309,9 +402,7 @@ namespace TSheetReports
                 }
             }
         }
-
-
-        void GetScheduleEventsSample(DateTimeOffset sDate, DateTimeOffset eDate)
+        DataTable GetScheduleCalendars()
         {
             //Utility ut = new Utility();
             //var sd = ut.FormatIso8601(sDate);
@@ -321,19 +412,19 @@ namespace TSheetReports
 
             var filters = new Dictionary<string, string>
             {
-                { "start", sDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
-                { "end", eDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
-                { "schedule_calendar_ids", "145533" },
-                { "user_ids", "1444085"}
+                //{ "start", sDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
+                //{ "end", eDate.ToString("yyyy-MM-ddTHH:mm:ssK") }
+                //{ "schedule_calendar_ids", "145533" }
+                //,
+                //{ "user_ids", "1444085"}
             };
 
-
-
             DataTable table = new DataTable();
-            table.Columns.Add("Consumer Name", typeof(string));
-            table.Columns.Add("Jobcode", typeof(string));
-            table.Columns.Add("Date", typeof(string));
-            table.Columns.Add("Act. Hours", typeof(string));
+            //table.Columns.Add("ConsumerName", typeof(string));
+            //table.Columns.Add("Jobcode", typeof(string));
+            //table.Columns.Add("Date", typeof(string));
+            //table.Columns.Add("Scheduled", typeof(double));
+            //table.Columns.Add("Actual", typeof(double));
             //DateTime modified = new DateTime(2018, 7, 15, 19, 32, 0);
             //DateTimeOffset localTimeAndOffset = new DateTimeOffset(modified, TimeZoneInfo.Local.GetUtcOffset(modified));
             //string s1 = modified.ToString("yyyy’-‘MM’-‘dd’T’HH’:’mm’:’ssK");
@@ -343,25 +434,26 @@ namespace TSheetReports
             //string s2 = modified.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK", CultureInfo.InvariantCulture);
             //=> "2017-06-26T20:45:00.070Z"
 
-            var scheduleEventData = tsheetsApi.Get(ObjectType.ScheduleEvents, filters);
-            var scheduleEventsObject = JObject.Parse(scheduleEventData);
-            var allScheduleEvents = scheduleEventsObject.SelectTokens("results.schedule_events.*");
-            foreach (var scheduleEvent in allScheduleEvents)
+            var scheduleCalendarData = tsheetsApi.Get(ObjectType.ScheduleCalendars, filters);
+            var scheduleCalendarsObject = JObject.Parse(scheduleCalendarData);
+            var allScheduleCalendars = scheduleCalendarsObject.SelectTokens("results.schedule_calendars.*");
+            foreach (var scheduleCalendar in allScheduleCalendars)
             {
                 Utility ut = new Utility();
 
-                DateTimeOffset start = (DateTimeOffset)scheduleEvent["start"];
-                DateTimeOffset end = (DateTimeOffset) scheduleEvent["end"];
+                //DateTimeOffset start = (DateTimeOffset)scheduleEvent["start"];
+                //DateTimeOffset end = (DateTimeOffset)scheduleEvent["end"];
 
-                double seconds = (double) ut.FormatIso8601Duration(start, end);
-                string hours = ut.DurationToHours(seconds);
+                //double seconds = (double)ut.FormatIso8601Duration(start, end);
+                //double scheduled = ut.DurationToHours(seconds);
+                //double actual = 0.00;
 
-                var tsUser = scheduleEventsObject.SelectToken("supplemental_data.users." + scheduleEvent["user_id"]);
-                string consumerName = tsUser["last_name"].ToString() + ", " + tsUser["first_name"].ToString();
+                //var tsUser = scheduleEventsObject.SelectToken("supplemental_data.users." + scheduleEvent["user_id"]);
+                //string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
 
-                var tsJobcode = scheduleEventsObject.SelectToken("supplemental_data.jobcodes." + scheduleEvent["jobcode_id"]);
+                //var tsJobcode = scheduleEventsObject.SelectToken("supplemental_data.jobcodes." + scheduleEvent["jobcode_id"]);
 
-                table.Rows.Add(consumerName, tsJobcode["name"], tsheet["date"].ToString(), hours);
+                //table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
 
 
                 //int seconds = (int)scheduleEvent["duration"];
@@ -382,7 +474,90 @@ namespace TSheetReports
                 // get the associated user for this timesheet
                 //var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + timesheet["user_id"]);
                 //Response.Write(string.Format("\tUser: {0} {1}</p>", tsUser["first_name"], tsUser["last_name"]));
+
+
             }
+
+            return table;
+        }
+
+        DataTable GetScheduleEventsSample(DateTimeOffset sDate, DateTimeOffset eDate,string scheduleCalendarIds)
+        {
+            //Utility ut = new Utility();
+            //var sd = ut.FormatIso8601(sDate);
+            //var ed = ut.FormatIso8601(eDate);
+
+            var tsheetsApi = new RestClient(_connection, _authProvider);
+
+            var filters = new Dictionary<string, string>
+            {
+                { "start", sDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
+                { "end", eDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
+                { "schedule_calendar_ids", scheduleCalendarIds }
+                //,
+                //{ "user_ids", "1444085"}
+            };
+
+            DataTable table = new DataTable();
+            table.Columns.Add("ConsumerName", typeof(string));
+            table.Columns.Add("Jobcode", typeof(string));
+            //table.Columns.Add("Date", typeof(string));
+            table.Columns.Add("Scheduled", typeof(double));
+            table.Columns.Add("Actual", typeof(double));
+            //DateTime modified = new DateTime(2018, 7, 15, 19, 32, 0);
+            //DateTimeOffset localTimeAndOffset = new DateTimeOffset(modified, TimeZoneInfo.Local.GetUtcOffset(modified));
+            //string s1 = modified.ToString("yyyy’-‘MM’-‘dd’T’HH’:’mm’:’ssK");
+            //string ss3 = localTimeAndOffset.ToString("yyyy-MM-ddTHH:mm:ssK");
+
+            // ISO8601 with 3 decimal places
+            //string s2 = modified.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK", CultureInfo.InvariantCulture);
+            //=> "2017-06-26T20:45:00.070Z"
+
+            var scheduleEventData = tsheetsApi.Get(ObjectType.ScheduleEvents, filters);
+            var scheduleEventsObject = JObject.Parse(scheduleEventData);
+            var allScheduleEvents = scheduleEventsObject.SelectTokens("results.schedule_events.*");
+            foreach (var scheduleEvent in allScheduleEvents)
+            {
+                Utility ut = new Utility();
+
+                DateTimeOffset start = (DateTimeOffset)scheduleEvent["start"];
+                DateTimeOffset end = (DateTimeOffset) scheduleEvent["end"];
+
+                double seconds = (double) ut.FormatIso8601Duration(start, end);
+                double scheduled = ut.DurationToHours(seconds);
+                double actual = 0.00;
+
+                var tsUser = scheduleEventsObject.SelectToken("supplemental_data.users." + scheduleEvent["user_id"]);
+                string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
+
+                var tsJobcode = scheduleEventsObject.SelectToken("supplemental_data.jobcodes." + scheduleEvent["jobcode_id"]);
+
+                table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
+
+
+                //int seconds = (int)scheduleEvent["duration"];
+                //TimeSpan t = TimeSpan.FromSeconds(seconds);
+                //string _duration = string.Format("{0:D2}h:{1:D2}m:{2:D2}s",t.Hours,t.Minutes,t.Seconds);
+
+
+                //string jobCodeName;
+                //if (jobcodeList.TryGetValue((int)scheduleEvent["jobcode_id"], out jobCodeName)) // Returns true.
+                //{
+                //    Console.WriteLine();
+                //}
+
+
+                //Response.Write(string.Format("<p>Schedule Event: ID={0}, User_ID={1}, Jobcode={2}, JobCodeName={3}, Startdate={4}, _Enddate={5}, Title={6}",
+                //scheduleEvent["id"], scheduleEvent["user_id"], scheduleEvent["jobcode_id"], jobCodeName, scheduleEvent["start"], scheduleEvent["end"], scheduleEvent["title"]));
+
+                // get the associated user for this timesheet
+                //var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + timesheet["user_id"]);
+                //Response.Write(string.Format("\tUser: {0} {1}</p>", tsUser["first_name"], tsUser["last_name"]));
+
+
+            }
+
+            return table;
         }
     }
 }

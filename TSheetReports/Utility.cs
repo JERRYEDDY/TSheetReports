@@ -8,12 +8,20 @@ namespace TSheetReports
     public class Utility
     {
 
-        public string DurationToHours(double duration)
+        //public string DurationToHours(double duration)
+        //{
+        //    var t = TimeSpan.FromSeconds(duration);
+        //    //var durationString = string.Format("{0:N2}", t.TotalHours);
+        //    var durationString = $"{t.TotalHours,0:N2}";
+        //    return durationString;
+        //}
+
+        public double DurationToHours(double duration)
         {
             var t = TimeSpan.FromSeconds(duration);
             //var durationString = string.Format("{0:N2}", t.TotalHours);
-            var durationString = $"{t.TotalHours,0:N2}";
-            return durationString;
+            //var durationString = $"{t.TotalHours,0:N2}";
+            return t.TotalHours;
         }
 
         public string FormatIso8601(DateTime dt)
@@ -28,7 +36,7 @@ namespace TSheetReports
             var formatIso8601 = dto.ToString("yyyy-MM-ddTHH:mm:ssK");
             return formatIso8601;
         }
-        public static DateTimeOffset FromString(string offsetString)
+        public DateTimeOffset DTOFromString(string offsetString)
         {
             if (!DateTimeOffset.TryParse(offsetString, out DateTimeOffset offset))
             {
