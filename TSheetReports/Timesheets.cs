@@ -1,24 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-
-// To parse this JSON data, add NuGet 'Newtonsoft.Json' then do:
+﻿// To parse this JSON data, add NuGet 'Newtonsoft.Json' then do:
 //
 //    using QuickType;
 //
-//    var timesheet = Timesheet.FromJson(jsonString);
+//    var timesheets = Timesheets.FromJson(jsonString);
+using System;
+using System.Collections.Generic;
+
+using System.Globalization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace QuickType
 {
-    using System;
-    using System.Collections.Generic;
-
-    using System.Globalization;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Converters;
-
-    public partial class Timesheet
+    public partial class Timesheets
     {
         [JsonProperty("results")]
         public Results Results { get; set; }
@@ -33,10 +27,10 @@ namespace QuickType
     public partial class Results
     {
         [JsonProperty("timesheets")]
-        public Dictionary<string, TimesheetValue> Timesheets { get; set; }
+        public Dictionary<string, Timesheet> Timesheets { get; set; }
     }
 
-    public partial class TimesheetValue
+    public partial class Timesheet
     {
         [JsonProperty("id")]
         public long Id { get; set; }
@@ -63,13 +57,13 @@ namespace QuickType
         public long Tz { get; set; }
 
         [JsonProperty("tz_str")]
-        public string TzStr { get; set; }
+        public TzStr TzStr { get; set; }
 
         [JsonProperty("type")]
-        public string Type { get; set; }
+        public TypeEnum Type { get; set; }
 
         [JsonProperty("location")]
-        public string Location { get; set; }
+        public Location Location { get; set; }
 
         [JsonProperty("on_the_clock")]
         public bool OnTheClock { get; set; }
@@ -78,7 +72,7 @@ namespace QuickType
         public long Locked { get; set; }
 
         [JsonProperty("notes")]
-        public string Notes { get; set; }
+        public Notes Notes { get; set; }
 
         [JsonProperty("customfields")]
         public TimesheetCustomfields Customfields { get; set; }
@@ -93,7 +87,7 @@ namespace QuickType
     public partial class TimesheetCustomfields
     {
         [JsonProperty("145171")]
-        public string The145171 { get; set; }
+        public Notes The145171 { get; set; }
     }
 
     public partial class SupplementalData
@@ -102,7 +96,7 @@ namespace QuickType
         public Dictionary<string, Jobcode> Jobcodes { get; set; }
 
         [JsonProperty("users")]
-        public Users Users { get; set; }
+        public Dictionary<string, User> Users { get; set; }
 
         [JsonProperty("customfields")]
         public SupplementalDataCustomfields Customfields { get; set; }
@@ -135,7 +129,7 @@ namespace QuickType
         public string Type { get; set; }
 
         [JsonProperty("short_code")]
-        [JsonConverter(typeof(ParseStringConverter))]
+        [JsonConverter(typeof(ParseIntegerConverter))]
         public long ShortCode { get; set; }
 
         [JsonProperty("regex_filter")]
@@ -205,13 +199,7 @@ namespace QuickType
         public object[] Locations { get; set; }
     }
 
-    public partial class Users
-    {
-        [JsonProperty("1444085")]
-        public The1444085 The1444085 { get; set; }
-    }
-
-    public partial class The1444085
+    public partial class User
     {
         [JsonProperty("id")]
         public long Id { get; set; }
@@ -271,7 +259,7 @@ namespace QuickType
         public string CompanyName { get; set; }
 
         [JsonProperty("profile_image_url")]
-        public Uri ProfileImageUrl { get; set; }
+        public string ProfileImageUrl { get; set; }
 
         [JsonProperty("mobile_number")]
         public string MobileNumber { get; set; }
@@ -304,14 +292,22 @@ namespace QuickType
         public string Customfields { get; set; }
     }
 
-    public partial class Timesheet
+    public enum Notes { Empty };
+
+    public enum Location { PittsburghPa, TsAccess };
+
+    public enum TypeEnum { Manual, Regular };
+
+    public enum TzStr { TsEt };
+
+    public partial class Timesheets
     {
-        public static Timesheet FromJson(string json) => JsonConvert.DeserializeObject<Timesheet>(json, QuickType.Converter.Settings);
+        public static Timesheets FromJson(string json) => JsonConvert.DeserializeObject<Timesheets>(json, QuickType.Converter.Settings);
     }
 
     public static class Serialize
     {
-        public static string ToJson(this Timesheet self) => JsonConvert.SerializeObject(self, QuickType.Converter.Settings);
+        public static string ToJson(this Timesheets self) => JsonConvert.SerializeObject(self, QuickType.Converter.Settings);
     }
 
     internal static class Converter
@@ -321,12 +317,166 @@ namespace QuickType
             MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
             DateParseHandling = DateParseHandling.None,
             Converters = {
+                NotesConverter.Singleton,
+                LocationConverter.Singleton,
+                TypeEnumConverter.Singleton,
+                TzStrConverter.Singleton,
                 new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
             },
         };
     }
 
-    internal class ParseStringConverter : JsonConverter
+    internal class NotesConverter : JsonConverter
+    {
+        public override bool CanConvert(Type t) => t == typeof(Notes) || t == typeof(Notes?);
+
+        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null) return null;
+            var value = serializer.Deserialize<string>(reader);
+            if (value == "")
+            {
+                return Notes.Empty;
+            }
+            throw new Exception("Cannot unmarshal type Notes");
+        }
+
+        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
+        {
+            if (untypedValue == null)
+            {
+                serializer.Serialize(writer, null);
+                return;
+            }
+            var value = (Notes)untypedValue;
+            if (value == Notes.Empty)
+            {
+                serializer.Serialize(writer, "");
+                return;
+            }
+            throw new Exception("Cannot marshal type Notes");
+        }
+
+        public static readonly NotesConverter Singleton = new NotesConverter();
+    }
+
+    internal class LocationConverter : JsonConverter
+    {
+        public override bool CanConvert(Type t) => t == typeof(Location) || t == typeof(Location?);
+
+        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null) return null;
+            var value = serializer.Deserialize<string>(reader);
+            switch (value)
+            {
+                case "(Pittsburgh, PA?)":
+                    return Location.PittsburghPa;
+                case "TSAccess":
+                    return Location.TsAccess;
+            }
+            throw new Exception("Cannot unmarshal type Location");
+        }
+
+        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
+        {
+            if (untypedValue == null)
+            {
+                serializer.Serialize(writer, null);
+                return;
+            }
+            var value = (Location)untypedValue;
+            switch (value)
+            {
+                case Location.PittsburghPa:
+                    serializer.Serialize(writer, "(Pittsburgh, PA?)");
+                    return;
+                case Location.TsAccess:
+                    serializer.Serialize(writer, "TSAccess");
+                    return;
+            }
+            throw new Exception("Cannot marshal type Location");
+        }
+
+        public static readonly LocationConverter Singleton = new LocationConverter();
+    }
+
+    internal class TypeEnumConverter : JsonConverter
+    {
+        public override bool CanConvert(Type t) => t == typeof(TypeEnum) || t == typeof(TypeEnum?);
+
+        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null) return null;
+            var value = serializer.Deserialize<string>(reader);
+            switch (value)
+            {
+                case "manual":
+                    return TypeEnum.Manual;
+                case "regular":
+                    return TypeEnum.Regular;
+            }
+            throw new Exception("Cannot unmarshal type TypeEnum");
+        }
+
+        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
+        {
+            if (untypedValue == null)
+            {
+                serializer.Serialize(writer, null);
+                return;
+            }
+            var value = (TypeEnum)untypedValue;
+            switch (value)
+            {
+                case TypeEnum.Manual:
+                    serializer.Serialize(writer, "manual");
+                    return;
+                case TypeEnum.Regular:
+                    serializer.Serialize(writer, "regular");
+                    return;
+            }
+            throw new Exception("Cannot marshal type TypeEnum");
+        }
+
+        public static readonly TypeEnumConverter Singleton = new TypeEnumConverter();
+    }
+
+    internal class TzStrConverter : JsonConverter
+    {
+        public override bool CanConvert(Type t) => t == typeof(TzStr) || t == typeof(TzStr?);
+
+        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null) return null;
+            var value = serializer.Deserialize<string>(reader);
+            if (value == "tsET")
+            {
+                return TzStr.TsEt;
+            }
+            throw new Exception("Cannot unmarshal type TzStr");
+        }
+
+        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
+        {
+            if (untypedValue == null)
+            {
+                serializer.Serialize(writer, null);
+                return;
+            }
+            var value = (TzStr)untypedValue;
+            if (value == TzStr.TsEt)
+            {
+                serializer.Serialize(writer, "tsET");
+                return;
+            }
+            throw new Exception("Cannot marshal type TzStr");
+        }
+
+        public static readonly TzStrConverter Singleton = new TzStrConverter();
+    }
+
+    internal class ParseIntegerConverter : JsonConverter
     {
         public override bool CanConvert(Type t) => t == typeof(long) || t == typeof(long?);
 
@@ -354,7 +504,6 @@ namespace QuickType
             return;
         }
 
-        public static readonly ParseStringConverter Singleton = new ParseStringConverter();
+        public static readonly ParseIntegerConverter Singleton = new ParseIntegerConverter();
     }
 }
-

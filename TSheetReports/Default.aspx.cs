@@ -35,7 +35,6 @@ namespace TSheetReports
             // application. You can specify them through environment variables as shown here, or just
             // paste them into the code here directly.
 
-            //ShowTextPDF();
             log.Info("Hello logging world!");
             Console.WriteLine("Hit enter");
  
@@ -67,7 +66,9 @@ namespace TSheetReports
             //GetUserInfoSample();
             //GetUsersSample();
 
-            //ProjectReportSample();
+            DateTimeOffset sDate = new DateTime(2018, 9, 30, 0, 0, 0, DateTimeKind.Local);
+            DateTimeOffset eDate = new DateTime(2018, 10, 06, 0, 0, 0, DateTimeKind.Local);
+            ProjectReportSample(sDate,eDate);
             //AddEditDeleteTimesheetSample();
 
             //DateTimeOffset _sDate = new DateTime(2018, 8, 26, 0, 0, 0, DateTimeKind.Local);
@@ -94,9 +95,6 @@ namespace TSheetReports
             DateTimeOffset sDate = ut.DTOFromString(txtStartDate.Text);
             DateTimeOffset eDate = ut.DTOFromString(txtEndDate.Text);
 
-            //DateTimeOffset sDate = new DateTime(2018, 8, 26, 0, 0, 0, DateTimeKind.Local);
-            //DateTimeOffset eDate = new DateTime(2018, 9, 1, 0, 0, 0, DateTimeKind.Local);
-
             ReportDocument crystalReport = new ReportDocument();
             crystalReport.Load(Server.MapPath("CrystalReport1.rpt"));
 
@@ -119,7 +117,7 @@ namespace TSheetReports
             //Create a new datatable for the result
             DataTable resultDataTable = dataTable1.Clone();
             resultDataTable.Columns.Add("Remaining", typeof(double), "IIF(Scheduled-Actual<0,0.00, Scheduled-Actual)");
-            resultDataTable.Columns.Add("Total", typeof(double), "Actual + Remain");
+            resultDataTable.Columns.Add("Total", typeof(double), "Actual + Remaining");
 
             //Temporary variables
             DataRow newDataRow;
@@ -307,50 +305,22 @@ namespace TSheetReports
 
             var timesheetData = tsheetsApi.Get(ObjectType.Timesheets, filters);
             var timesheetsObject = JObject.Parse(timesheetData);
-            var timesheet = Timesheet.FromJson(timesheetData);
-
             var allTimeSheets = timesheetsObject.SelectTokens("results.timesheets.*");
-            foreach (var tsheet in allTimeSheets)
-
-            //foreach (Timesheet wTimesheet in timesheet.Results.Timesheets.Values)
+            foreach (var tSheet in allTimeSheets)
             {
                 Utility ut = new Utility();
-
-                DateTimeOffset date = DateTimeOffset.ParseExact(tsheet["date"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                DateTimeOffset date = DateTimeOffset.ParseExact(tSheet["date"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
 
                 double scheduled = 0.00;
-                double seconds = (double)tsheet["duration"];
+                double seconds = (double)tSheet["duration"];
                 double actual = ut.DurationToHours(seconds);
 
-                var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + tsheet["user_id"]);
+                var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + tSheet["user_id"]);
                 string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
-
-                var tsJobcode = timesheetsObject.SelectToken("supplemental_data.jobcodes." + tsheet["jobcode_id"]);
+                var tsJobcode = timesheetsObject.SelectToken("supplemental_data.jobcodes." + tSheet["jobcode_id"]);
 
                 table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
             }
-
-            //var timesheetsObject = JObject.Parse(timesheetData);
-            //var allTimeSheets = timesheetsObject.SelectTokens("results.timesheets.*");
-            //foreach (var tsheet in allTimeSheets)
-            //{
-            //    int seconds = (int)tsheet["duration"];
-            //    TimeSpan t = TimeSpan.FromSeconds(seconds);
-            //    string _duration = string.Format("{0:N2}", t.TotalHours);
-
-            //    string jobCodeName;
-            //    if (jobcodeList.TryGetValue((int)tsheet["jobcode_id"], out jobCodeName)) // Returns true.
-            //    {
-            //        //Console.WriteLine(test); // This is the value at cat.
-            //    }
-            //    var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + tsheet["user_id"]);
-
-            //    string consumerName = tsUser["last_name"].ToString() + ", " + tsUser["first_name"].ToString();
-            //    table.Rows.Add(consumerName, jobCodeName, tsheet["date"].ToString(), _duration);
-
-            //    Response.Write(string.Format("<p>User: {0} {1}, Date={2},JobCodeName={3},_Duration={4}",
-            //        tsUser["first_name"], tsUser["last_name"], tsheet["date"], jobCodeName, _duration));
-            //}
 
             return table;
         }
@@ -500,8 +470,9 @@ namespace TSheetReports
 
             DataTable table = new DataTable();
             table.Columns.Add("ConsumerName", typeof(string));
+            table.Columns.Add("Date", typeof(string));
             table.Columns.Add("Jobcode", typeof(string));
-            //table.Columns.Add("Date", typeof(string));
+
             table.Columns.Add("Scheduled", typeof(double));
             table.Columns.Add("Actual", typeof(double));
             //DateTime modified = new DateTime(2018, 7, 15, 19, 32, 0);
@@ -532,7 +503,7 @@ namespace TSheetReports
 
                 var tsJobcode = scheduleEventsObject.SelectToken("supplemental_data.jobcodes." + scheduleEvent["jobcode_id"]);
 
-                table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
+                table.Rows.Add(consumerName, start.ToString(), tsJobcode["name"], scheduled, actual);
 
 
                 //int seconds = (int)scheduleEvent["duration"];
@@ -558,6 +529,27 @@ namespace TSheetReports
             }
 
             return table;
+        }
+
+        /// <summary>
+        /// Shows how to create a user, create a jobcode, log time against it, and then run a project report
+        /// that shows them
+        /// </summary>
+        public static void ProjectReportSample(DateTimeOffset sDate, DateTimeOffset eDate)
+        {
+            var tsheetsApi = new RestClient(_connection, _authProvider);
+
+            string startDate = sDate.ToString("yyyy-MM-dd");
+            string endDate = sDate.ToString("yyyy-MM-dd");
+            dynamic reportOptions = new JObject();
+            reportOptions.data = new JObject();
+            reportOptions.data.start_date = startDate;
+            reportOptions.data.end_date = endDate;
+
+            var projectReport = tsheetsApi.GetReport(ReportType.Project, reportOptions.ToString());
+
+            Console.WriteLine(projectReport);
+
         }
     }
 }
