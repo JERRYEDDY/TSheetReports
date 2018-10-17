@@ -68,6 +68,9 @@ namespace TSheetReports
 
             DateTimeOffset sDate = new DateTime(2018, 9, 30, 0, 0, 0, DateTimeKind.Local);
             DateTimeOffset eDate = new DateTime(2018, 10, 06, 0, 0, 0, DateTimeKind.Local);
+
+            PayrollByJobcodeReportSample(sDate,eDate);
+
             ProjectReportSample(sDate,eDate);
             //AddEditDeleteTimesheetSample();
 
@@ -540,7 +543,7 @@ namespace TSheetReports
             var tsheetsApi = new RestClient(_connection, _authProvider);
 
             string startDate = sDate.ToString("yyyy-MM-dd");
-            string endDate = sDate.ToString("yyyy-MM-dd");
+            string endDate = eDate.ToString("yyyy-MM-dd");
             dynamic reportOptions = new JObject();
             reportOptions.data = new JObject();
             reportOptions.data.start_date = startDate;
@@ -549,6 +552,23 @@ namespace TSheetReports
             var projectReport = tsheetsApi.GetReport(ReportType.Project, reportOptions.ToString());
 
             Console.WriteLine(projectReport);
+
+        }
+
+        public static void PayrollByJobcodeReportSample(DateTimeOffset sDate, DateTimeOffset eDate)
+        {
+            var tsheetsApi = new RestClient(_connection, _authProvider);
+
+            string startDate = sDate.ToString("yyyy-MM-dd");
+            string endDate = eDate.ToString("yyyy-MM-dd");
+            dynamic reportOptions = new JObject();
+            reportOptions.data = new JObject();
+            reportOptions.data.start_date = startDate;
+            reportOptions.data.end_date = endDate;
+
+            var payrollByJobcodeReport = tsheetsApi.GetReport(ReportType.PayrollByJobcode, reportOptions.ToString());
+
+            Console.WriteLine(payrollByJobcodeReport);
 
         }
     }
