@@ -10,7 +10,7 @@ using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
-namespace QuickType
+namespace TSheetReports
 {
     public partial class Timesheets
     {

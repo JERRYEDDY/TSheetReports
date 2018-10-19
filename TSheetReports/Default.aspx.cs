@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Web.UI;
 using Newtonsoft.Json.Linq;
 using TSheets;
-using System.IO;
 using System.Globalization;
 using System.Data;
 using System.Linq;
-using QuickType;
 using CrystalDecisions.CrystalReports.Engine;
 using log4net;
+using Newtonsoft.Json;
+using QuickType;
+
 
 namespace TSheetReports
 {
@@ -66,12 +67,12 @@ namespace TSheetReports
             //GetUserInfoSample();
             //GetUsersSample();
 
-            DateTimeOffset sDate = new DateTime(2018, 9, 30, 0, 0, 0, DateTimeKind.Local);
-            DateTimeOffset eDate = new DateTime(2018, 10, 06, 0, 0, 0, DateTimeKind.Local);
+            DateTimeOffset sDate = new DateTime(2018, 10, 14, 0, 0, 0, DateTimeKind.Local);
+            DateTimeOffset eDate = new DateTime(2018, 10, 20, 0, 0, 0, DateTimeKind.Local);
 
             PayrollByJobcodeReportSample(sDate,eDate);
 
-            ProjectReportSample(sDate,eDate);
+            //ProjectReportSample(sDate,eDate);
             //AddEditDeleteTimesheetSample();
 
             //DateTimeOffset _sDate = new DateTime(2018, 8, 26, 0, 0, 0, DateTimeKind.Local);
@@ -307,6 +308,12 @@ namespace TSheetReports
             table.Columns.Add("Actual", typeof(double));
 
             var timesheetData = tsheetsApi.Get(ObjectType.Timesheets, filters);
+
+
+            //var timesheet = Timesheets.FromJson(timesheetData);
+            ///foreach(Timesheet tSheet in timesheet.Results.Timesheets.Values)
+
+
             var timesheetsObject = JObject.Parse(timesheetData);
             var allTimeSheets = timesheetsObject.SelectTokens("results.timesheets.*");
             foreach (var tSheet in allTimeSheets)
@@ -421,7 +428,7 @@ namespace TSheetReports
                 //double scheduled = ut.DurationToHours(seconds);
                 //double actual = 0.00;
 
-                //var tsUser = scheduleEventsObject.SelectToken("supplemental_data.users." + scheduleEvent["user_id"]);
+                //var tsUser = scheduleEventsObject.SelectToken(" al_data.users." + scheduleEvent["user_id"]);
                 //string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
 
                 //var tsJobcode = scheduleEventsObject.SelectToken("supplemental_data.jobcodes." + scheduleEvent["jobcode_id"]);
@@ -566,9 +573,74 @@ namespace TSheetReports
             reportOptions.data.start_date = startDate;
             reportOptions.data.end_date = endDate;
 
-            var payrollByJobcodeReport = tsheetsApi.GetReport(ReportType.PayrollByJobcode, reportOptions.ToString());
+            var payrollByJobcodeData = tsheetsApi.GetReport(ReportType.PayrollByJobcode, reportOptions.ToString());
+            var payrollByJobcode = PayrollByJobcode.FromJson(payrollByJobcodeData);
 
-            Console.WriteLine(payrollByJobcodeReport);
+            PayrollByJobcode pbj = new PayrollByJobcode();
+
+
+            var message = JsonConvert.DeserializeObject<PayrollByJobcode>(payrollByJobcodeData);
+            foreach (KeyValuePair<string, ByUser> usr in message.Results.PayrollByJobcodeReport.ByUser)
+            {
+                foreach (KeyValuePair<string, Total> tot in usr.Value.Totals)
+                {
+
+                }
+                    
+            }
+
+
+
+            string sdate = message.Results.Filters.StartDate.ToString();
+
+            var pbjObject = JObject.Parse(payrollByJobcodeData);
+
+            string start = payrollByJobcode.Results.Filters.StartDate.ToString();
+            foreach (var aUser in payrollByJobcode.Results.PayrollByJobcodeReport.ByUser)
+            {
+
+                //string u = aUser.Value.user_id;
+
+                foreach (var total in aUser.Values.Totals)
+                {
+
+                }
+
+            }
+
+            var users = pbjObject.SelectTokens("results.payroll_by_jobcode_report.by_user.*");
+            foreach (var user in users)
+            {
+                Utility ut = new Utility();
+
+                string theUser = user["user_id"].ToString();
+
+                foreach (var total in user["totals"])
+                {
+
+                    string jc = total["jobcode_id"].ToString();
+
+                }
+                
+                //DateTimeOffset date = DateTimeOffset.ParseExact(user["date"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+                //double scheduled = 0.00;
+                //double seconds = (double)user["duration"];
+                //double actual = ut.DurationToHours(seconds);
+
+                //var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + tSheet["user_id"]);
+                //string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
+                //var tsJobcode = timesheetsObject.SelectToken("supplemental_data.jobcodes." + tSheet["jobcode_id"]);
+
+                //table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
+            }
+
+
+
+
+
+
+            //Console.WriteLine(payrollByJobcodeReport);
 
         }
     }
