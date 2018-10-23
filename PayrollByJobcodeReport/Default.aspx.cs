@@ -51,16 +51,8 @@ namespace TSheetReports
             DateTimeOffset eDate = new DateTime(2018, 10, 20, 0, 0, 0, DateTimeKind.Local);
 
             DataTable dataTable = PayrollByJobcodeReportSample(sDate,eDate);
-
             dataTable.DefaultView.Sort = "ConsumerName, Jobcode";
-
             DataView dv = dataTable.DefaultView;
-
-            var dataView = new DataView(dataTable)
-            {
-                Sort = "ConsumerName ASC, Jobcode ASC"
-            };
-
         }
 
         protected void SubmitButton_OnClick(object sender, EventArgs e)
@@ -74,8 +66,6 @@ namespace TSheetReports
             crystalReport.Load(Server.MapPath("CrystalReport1.rpt"));
 
             DataTable dataTable1 = PayrollByJobcodeReportSample(sDate, eDate);
-
-
 
             DataSet1 ds = new DataSet1();
             ds.Tables.Add(dataTable1);
@@ -141,10 +131,10 @@ namespace TSheetReports
             PayrollByJobcode pbj = new PayrollByJobcode();
           
             DataTable table = new DataTable();
-            table.Columns.Add("Start", typeof(string));
-            table.Columns.Add("End", typeof(string));
             table.Columns.Add("ConsumerName", typeof(string));
             table.Columns.Add("Jobcode", typeof(string));
+            table.Columns.Add("Start", typeof(string));
+            table.Columns.Add("End", typeof(string));
             table.Columns.Add("Hours", typeof(string));
             table.Columns.Add("Units", typeof(string));
             table.Columns.Add("Ratio %", typeof(string));
@@ -183,7 +173,7 @@ namespace TSheetReports
 
                         double ratio = (double)totals.Value.TotalReSeconds / totalHours;
 
-                        table.Rows.Add(start, end, consumer, jobcode, hours, units, ratio.ToString("0.00%"));
+                        table.Rows.Add(consumer, jobcode, start, end, hours, units, ratio.ToString("0.00%"));
                     }
                     //table.Rows.Add("", "TOTAL", tHours, tUnits,"");
                 }
