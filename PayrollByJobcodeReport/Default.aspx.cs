@@ -9,7 +9,7 @@ using System.Linq;
 using CrystalDecisions.CrystalReports.Engine;
 using log4net;
 using Newtonsoft.Json;
-using QuickType;
+using PBJReport;
 
 
 namespace TSheetReports
@@ -27,6 +27,13 @@ namespace TSheetReports
         private static string _redirectUri;
         private static string _clientSecret;
         private static string _manualToken;
+
+        public class DataClass
+        {
+            public string Column1 { get; set; }
+            public List<DataRow> Properties { get; set; }
+        }
+
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -96,8 +103,8 @@ namespace TSheetReports
         {
             Utility ut = new Utility();
 
-            DateTimeOffset sDate = ut.DTOFromString(txtStartDate.Text);
-            DateTimeOffset eDate = ut.DTOFromString(txtEndDate.Text);
+            DateTimeOffset sDate = ut.FromString(txtStartDate.Text);
+            DateTimeOffset eDate = ut.FromString(txtEndDate.Text);
 
             ReportDocument crystalReport = new ReportDocument();
             crystalReport.Load(Server.MapPath("CrystalReport1.rpt"));
@@ -305,7 +312,7 @@ namespace TSheetReports
             table.Columns.Add("Jobcode", typeof(string));
             //table.Columns.Add("Date", typeof(string));
             table.Columns.Add("Scheduled", typeof(double));
-            table.Columns.Add("Actual", typeof(double));
+            table.Columns.Add("Actual", typeof(string));
 
             var timesheetData = tsheetsApi.Get(ObjectType.Timesheets, filters);
 
@@ -321,9 +328,9 @@ namespace TSheetReports
                 Utility ut = new Utility();
                 DateTimeOffset date = DateTimeOffset.ParseExact(tSheet["date"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-                double scheduled = 0.00;
+                string scheduled = "0.00";
                 double seconds = (double)tSheet["duration"];
-                double actual = ut.DurationToHours(seconds);
+                string actual = ut.DurationToHours(seconds).ToString("N");
 
                 var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + tSheet["user_id"]);
                 string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
@@ -382,84 +389,7 @@ namespace TSheetReports
                 }
             }
         }
-        DataTable GetScheduleCalendars()
-        {
-            //Utility ut = new Utility();
-            //var sd = ut.FormatIso8601(sDate);
-            //var ed = ut.FormatIso8601(eDate);
 
-            var tsheetsApi = new RestClient(_connection, _authProvider);
-
-            var filters = new Dictionary<string, string>
-            {
-                //{ "start", sDate.ToString("yyyy-MM-ddTHH:mm:ssK") },
-                //{ "end", eDate.ToString("yyyy-MM-ddTHH:mm:ssK") }
-                //{ "schedule_calendar_ids", "145533" }
-                //,
-                //{ "user_ids", "1444085"}
-            };
-
-            DataTable table = new DataTable();
-            //table.Columns.Add("ConsumerName", typeof(string));
-            //table.Columns.Add("Jobcode", typeof(string));
-            //table.Columns.Add("Date", typeof(string));
-            //table.Columns.Add("Scheduled", typeof(double));
-            //table.Columns.Add("Actual", typeof(double));
-            //DateTime modified = new DateTime(2018, 7, 15, 19, 32, 0);
-            //DateTimeOffset localTimeAndOffset = new DateTimeOffset(modified, TimeZoneInfo.Local.GetUtcOffset(modified));
-            //string s1 = modified.ToString("yyyy’-‘MM’-‘dd’T’HH’:’mm’:’ssK");
-            //string ss3 = localTimeAndOffset.ToString("yyyy-MM-ddTHH:mm:ssK");
-
-            // ISO8601 with 3 decimal places
-            //string s2 = modified.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK", CultureInfo.InvariantCulture);
-            //=> "2017-06-26T20:45:00.070Z"
-
-            var scheduleCalendarData = tsheetsApi.Get(ObjectType.ScheduleCalendars, filters);
-            var scheduleCalendarsObject = JObject.Parse(scheduleCalendarData);
-            var allScheduleCalendars = scheduleCalendarsObject.SelectTokens("results.schedule_calendars.*");
-            foreach (var scheduleCalendar in allScheduleCalendars)
-            {
-                Utility ut = new Utility();
-
-                //DateTimeOffset start = (DateTimeOffset)scheduleEvent["start"];
-                //DateTimeOffset end = (DateTimeOffset)scheduleEvent["end"];
-
-                //double seconds = (double)ut.FormatIso8601Duration(start, end);
-                //double scheduled = ut.DurationToHours(seconds);
-                //double actual = 0.00;
-
-                //var tsUser = scheduleEventsObject.SelectToken(" al_data.users." + scheduleEvent["user_id"]);
-                //string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
-
-                //var tsJobcode = scheduleEventsObject.SelectToken("supplemental_data.jobcodes." + scheduleEvent["jobcode_id"]);
-
-                //table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
-
-
-                //int seconds = (int)scheduleEvent["duration"];
-                //TimeSpan t = TimeSpan.FromSeconds(seconds);
-                //string _duration = string.Format("{0:D2}h:{1:D2}m:{2:D2}s",t.Hours,t.Minutes,t.Seconds);
-
-
-                //string jobCodeName;
-                //if (jobcodeList.TryGetValue((int)scheduleEvent["jobcode_id"], out jobCodeName)) // Returns true.
-                //{
-                //    Console.WriteLine();
-                //}
-
-
-                //Response.Write(string.Format("<p>Schedule Event: ID={0}, User_ID={1}, Jobcode={2}, JobCodeName={3}, Startdate={4}, _Enddate={5}, Title={6}",
-                //scheduleEvent["id"], scheduleEvent["user_id"], scheduleEvent["jobcode_id"], jobCodeName, scheduleEvent["start"], scheduleEvent["end"], scheduleEvent["title"]));
-
-                // get the associated user for this timesheet
-                //var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + timesheet["user_id"]);
-                //Response.Write(string.Format("\tUser: {0} {1}</p>", tsUser["first_name"], tsUser["last_name"]));
-
-
-            }
-
-            return table;
-        }
 
         DataTable GetScheduleEventsSample(DateTimeOffset sDate, DateTimeOffset eDate,string scheduleCalendarIds)
         {
@@ -483,8 +413,8 @@ namespace TSheetReports
             table.Columns.Add("Date", typeof(string));
             table.Columns.Add("Jobcode", typeof(string));
 
-            table.Columns.Add("Scheduled", typeof(double));
-            table.Columns.Add("Actual", typeof(double));
+            table.Columns.Add("Scheduled", typeof(string));
+            table.Columns.Add("Actual", typeof(string));
             //DateTime modified = new DateTime(2018, 7, 15, 19, 32, 0);
             //DateTimeOffset localTimeAndOffset = new DateTimeOffset(modified, TimeZoneInfo.Local.GetUtcOffset(modified));
             //string s1 = modified.ToString("yyyy’-‘MM’-‘dd’T’HH’:’mm’:’ssK");
@@ -505,8 +435,8 @@ namespace TSheetReports
                 DateTimeOffset end = (DateTimeOffset) scheduleEvent["end"];
 
                 double seconds = (double) ut.FormatIso8601Duration(start, end);
-                double scheduled = ut.DurationToHours(seconds);
-                double actual = 0.00;
+                string scheduled = ut.DurationToHours(seconds).ToString("N");
+                string actual = "0.00";
 
                 var tsUser = scheduleEventsObject.SelectToken("supplemental_data.users." + scheduleEvent["user_id"]);
                 string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
@@ -515,11 +445,9 @@ namespace TSheetReports
 
                 table.Rows.Add(consumerName, start.ToString(), tsJobcode["name"], scheduled, actual);
 
-
                 //int seconds = (int)scheduleEvent["duration"];
                 //TimeSpan t = TimeSpan.FromSeconds(seconds);
                 //string _duration = string.Format("{0:D2}h:{1:D2}m:{2:D2}s",t.Hours,t.Minutes,t.Seconds);
-
 
                 //string jobCodeName;
                 //if (jobcodeList.TryGetValue((int)scheduleEvent["jobcode_id"], out jobCodeName)) // Returns true.
@@ -527,42 +455,18 @@ namespace TSheetReports
                 //    Console.WriteLine();
                 //}
 
-
                 //Response.Write(string.Format("<p>Schedule Event: ID={0}, User_ID={1}, Jobcode={2}, JobCodeName={3}, Startdate={4}, _Enddate={5}, Title={6}",
                 //scheduleEvent["id"], scheduleEvent["user_id"], scheduleEvent["jobcode_id"], jobCodeName, scheduleEvent["start"], scheduleEvent["end"], scheduleEvent["title"]));
 
                 // get the associated user for this timesheet
                 //var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + timesheet["user_id"]);
                 //Response.Write(string.Format("\tUser: {0} {1}</p>", tsUser["first_name"], tsUser["last_name"]));
-
-
             }
 
             return table;
         }
 
-        /// <summary>
-        /// Shows how to create a user, create a jobcode, log time against it, and then run a project report
-        /// that shows them
-        /// </summary>
-        public static void ProjectReportSample(DateTimeOffset sDate, DateTimeOffset eDate)
-        {
-            var tsheetsApi = new RestClient(_connection, _authProvider);
-
-            string startDate = sDate.ToString("yyyy-MM-dd");
-            string endDate = eDate.ToString("yyyy-MM-dd");
-            dynamic reportOptions = new JObject();
-            reportOptions.data = new JObject();
-            reportOptions.data.start_date = startDate;
-            reportOptions.data.end_date = endDate;
-
-            var projectReport = tsheetsApi.GetReport(ReportType.Project, reportOptions.ToString());
-
-            Console.WriteLine(projectReport);
-
-        }
-
-        public static void PayrollByJobcodeReportSample(DateTimeOffset sDate, DateTimeOffset eDate)
+        public int PayrollByJobcodeReportSample(DateTimeOffset sDate, DateTimeOffset eDate)
         {
             var tsheetsApi = new RestClient(_connection, _authProvider);
 
@@ -577,71 +481,53 @@ namespace TSheetReports
             var payrollByJobcode = PayrollByJobcode.FromJson(payrollByJobcodeData);
 
             PayrollByJobcode pbj = new PayrollByJobcode();
+          
+            DataTable table = new DataTable();
+            table.Columns.Add("ConsumerName", typeof(string));
+            table.Columns.Add("Jobcode", typeof(string));
+            table.Columns.Add("Hours", typeof(string));
+            table.Columns.Add("Units", typeof(string));
+            table.Columns.Add("Ratio %", typeof(string));
 
+            Utility utility = new Utility();
 
-            var message = JsonConvert.DeserializeObject<PayrollByJobcode>(payrollByJobcodeData);
-            foreach (KeyValuePair<string, ByUser> usr in message.Results.PayrollByJobcodeReport.ByUser)
+            var pbjReportObject = JsonConvert.DeserializeObject<PayrollByJobcode>(payrollByJobcodeData);
+            foreach (KeyValuePair<string, ByUser> userObject in pbjReportObject.Results.PayrollByJobcodeReport.ByUser)
             {
-                foreach (KeyValuePair<string, Total> tot in usr.Value.Totals)
+                if (pbjReportObject.SupplementalData.Users.TryGetValue(userObject.Key, out PBJReport.User user))
                 {
+                    string consumer = user.FirstName + ", " + user.LastName;
 
+                    long totalHours = 0;
+                    foreach (KeyValuePair<string, Total> totals in userObject.Value.Totals)
+                    {
+                        totalHours += totals.Value.TotalReSeconds;
+                    }
+                    string tHours = utility.DurationToHours(totalHours).ToString("N");
+                    string tUnits = utility.DurationToUnits(totalHours).ToString();
+
+
+                    string jobcode = null;
+                    foreach (KeyValuePair<string, Total> totals in userObject.Value.Totals)
+                    {
+                        var jobcodes = pbjReportObject.SupplementalData.Jobcodes;
+                        if (jobcodes.TryGetValue(totals.Value.JobcodeId.ToString(), out PBJReport.Jobcode jc))
+                        {
+                            jobcode = jc.Name;
+                        }
+                            
+                        string hours = utility.DurationToHours(totals.Value.TotalReSeconds).ToString("N");
+                        string units = utility.DurationToUnits(totals.Value.TotalReSeconds).ToString();
+
+                        double ratio = (double)totals.Value.TotalReSeconds / totalHours;
+
+                        table.Rows.Add(consumer, jobcode, hours, units, ratio.ToString("0.00%"));
+                    }
+                    table.Rows.Add("", "TOTAL", tHours, tUnits,"");
                 }
-                    
             }
 
-
-
-            string sdate = message.Results.Filters.StartDate.ToString();
-
-            var pbjObject = JObject.Parse(payrollByJobcodeData);
-
-            string start = payrollByJobcode.Results.Filters.StartDate.ToString();
-            foreach (var aUser in payrollByJobcode.Results.PayrollByJobcodeReport.ByUser)
-            {
-
-                //string u = aUser.Value.user_id;
-
-                foreach (var total in aUser.Values.Totals)
-                {
-
-                }
-
-            }
-
-            var users = pbjObject.SelectTokens("results.payroll_by_jobcode_report.by_user.*");
-            foreach (var user in users)
-            {
-                Utility ut = new Utility();
-
-                string theUser = user["user_id"].ToString();
-
-                foreach (var total in user["totals"])
-                {
-
-                    string jc = total["jobcode_id"].ToString();
-
-                }
-                
-                //DateTimeOffset date = DateTimeOffset.ParseExact(user["date"].ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-                //double scheduled = 0.00;
-                //double seconds = (double)user["duration"];
-                //double actual = ut.DurationToHours(seconds);
-
-                //var tsUser = timesheetsObject.SelectToken("supplemental_data.users." + tSheet["user_id"]);
-                //string consumerName = tsUser["last_name"] + ", " + tsUser["first_name"];
-                //var tsJobcode = timesheetsObject.SelectToken("supplemental_data.jobcodes." + tSheet["jobcode_id"]);
-
-                //table.Rows.Add(consumerName, tsJobcode["name"], scheduled, actual);
-            }
-
-
-
-
-
-
-            //Console.WriteLine(payrollByJobcodeReport);
-
+            return 0;
         }
     }
 }

@@ -302,12 +302,12 @@ namespace TSheetReports
 
     public partial class Timesheets
     {
-        public static Timesheets FromJson(string json) => JsonConvert.DeserializeObject<Timesheets>(json, QuickType.Converter.Settings);
+        public static Timesheets FromJson(string json) => JsonConvert.DeserializeObject<Timesheets>(json, TSheetReports.Converter.Settings);
     }
 
     public static class Serialize
     {
-        public static string ToJson(this Timesheets self) => JsonConvert.SerializeObject(self, QuickType.Converter.Settings);
+        public static string ToJson(this Timesheets self) => JsonConvert.SerializeObject(self, TSheetReports.Converter.Settings);
     }
 
     internal static class Converter

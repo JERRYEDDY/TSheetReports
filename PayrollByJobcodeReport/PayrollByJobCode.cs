@@ -12,7 +12,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
 
-namespace QuickType
+namespace PBJReport
 {
     public partial class PayrollByJobcode
     {
@@ -241,12 +241,12 @@ namespace QuickType
 
     public partial class PayrollByJobcode
     {
-        public static PayrollByJobcode FromJson(string json) => JsonConvert.DeserializeObject<PayrollByJobcode>(json, QuickType.Converter.Settings);
+        public static PayrollByJobcode FromJson(string json) => JsonConvert.DeserializeObject<PayrollByJobcode>(json, PBJReport.Converter.Settings);
     }
 
     public static class Serialize
     {
-        public static string ToJson(this PayrollByJobcode self) => JsonConvert.SerializeObject(self, QuickType.Converter.Settings);
+        public static string ToJson(this PayrollByJobcode self) => JsonConvert.SerializeObject(self, PBJReport.Converter.Settings);
     }
 
     internal static class Converter
