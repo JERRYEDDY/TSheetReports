@@ -55,5 +55,10 @@ namespace TSheetReports
 
             return duration.TotalSeconds;
         }
+
+        public static bool BetweenRanges(double lower, double upper, double number)
+        {
+            return (lower <= number && number <= upper);
+        }
     }
 }
